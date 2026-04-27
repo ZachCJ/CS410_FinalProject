@@ -25,8 +25,10 @@ CREATE TABLE Assignment (
     description text,
     point_value decimal,
     Category_ID int not null,
+    Class_ID int not null,
     CONSTRAINT Assignment_ibfk_1 FOREIGN KEY (Category_ID) REFERENCES Category (ID),
-    PRIMARY KEY (name, Category_ID)
+    CONSTRAINT Assignment_ibfk_2 FOREIGN KEY (Class_ID) REFERENCES Class (ID),
+    PRIMARY KEY (name, Class_ID) -- Gives the Constraint the a class cannot have two assignments of the same name.
 );
 
 CREATE TABLE ClassHasCategory (
@@ -36,4 +38,23 @@ CREATE TABLE ClassHasCategory (
     CONSTRAINT ClassHasCategory_ibfk_1 FOREIGN KEY (Class_ID) REFERENCES Class (ID),
     CONSTRAINT ClassHasCategory_ibfk_2 FOREIGN KEY (Category_ID) REFERENCES Category (ID),
     PRIMARY KEY (Class_ID, Category_ID)
+);
+
+CREATE TABLE Enrolled (
+    Class_ID int not null,
+    Student_ID int not null,
+    CONSTRAINT Enrolled_ibfk_1 FOREIGN KEY (Class_ID) REFERENCES Class (ID),
+    CONSTRAINT Enrolled_ibfk_2 FOREIGN KEY (Student_ID) REFERENCES Student (ID),
+    PRIMARY KEY (Class_ID, Student_ID)
+);
+
+CREATE TABLE Assigned (
+    Student_ID int not null,
+    Assignment_name varchar(60) not null,
+    Class_ID int not null,
+    grade decimal,
+    CONSTRAINT Assignment_ibfk_1 FOREIGN KEY (Class_ID) REFERENCES Assignment (Class_ID),
+    CONSTRAINT Assignment_ibfk_2 FOREIGN KEY (Student_ID) REFERENCES Student (ID),
+    CONSTRAINT Assignment_ibfk_3 FOREIGN KEY (Assignment_name) REFERENCES Assignment (name),
+    PRIMARY KEY (Student_ID, Assignment_name, Class_ID)
 );
