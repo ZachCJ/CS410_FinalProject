@@ -9,17 +9,16 @@ import java.util.Arrays;
 public class Database {
 
     private Statement statement;
+    private Connection connection;
 
     /**
      * TODO: Test and finish
      * Source for jdbc connection: https://www.geeksforgeeks.org/java/establishing-jdbc-connection-in-java/
      */
-    public Database() throws ClassNotFoundException, SQLException {
+    public Database(String remotePort, String dbPassword) throws ClassNotFoundException, SQLException {
         //Load driver class file
-        Class.forName("oracle.jdbc.OracleDriver");
-        DriverManager.registerDriver(new oracle.jdbc.driver.OracleDriver());
-        Connection connection = DriverManager.getConnection(url, user, password);
-        String url = "jdbc:mysql://*url*:port";
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        connection = DriverManager.getConnection("jdbc:mysql://onyx.boisestate.edu" + remotePort + "/test?verifyServerCertificate=false&useSSL=true", "msandbox", dbPassword);
         statement = connection.createStatement();
     }
 
@@ -157,13 +156,20 @@ public class Database {
      *
      * @param query - A SQL Query
      * @return - the ResultSet of the query.
+     * @throws SQLException - thrown in the case the connection rollback fails
      */
-    private ResultSet executeQuery(String query) {
+    private ResultSet executeQuery(String query) throws SQLException {
+        ResultSet results;
         try {
-            return statement.executeQuery(query);
+            connection.setAutoCommit(false);
+           results = statement.executeQuery(query);
+            connection.commit();
         } catch (SQLException e) {
+            connection.rollback();
             System.err.println(e.getMessage() + Arrays.toString(e.getStackTrace()));
             throw new RuntimeException(e);
+        } finally {
+            connection.setAutoCommit(true);
         }
     }
 
