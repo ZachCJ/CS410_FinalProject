@@ -80,6 +80,72 @@ public class Database {
 
     }
 
+    //////////////////////////////////
+    //      Student Management      //
+    //////////////////////////////////
+
+    /**
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public void addStudent() {
+
+    }
+
+    /**
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public void enrollStudent() {
+
+    }
+
+    /**
+     * Note: needed for adding new students to check if a student ID is being updated
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public boolean studentExists() {
+
+    }
+
+    /**
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public void updateStudent() {
+
+    }
+
+    /**
+     * Note: There will be two of these one that uses the current class and one that uses a string match.
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public void getStudents() {
+
+    }
+
+    /**
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public void assignGrade() {
+
+    }
+
+    ///////////////////////////////
+    //      Grade Reporting      //
+    ///////////////////////////////
+
+    /**
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public void getGradesForStudent() {
+
+    }
+
+    /**
+     * TODO: Rewrite method signature to include params and proper return, and make
+     */
+    public void getCurrentClassGrades() {
+
+    }
+
     //////////////////////////////
     //      Helper Methods      //
     //////////////////////////////
