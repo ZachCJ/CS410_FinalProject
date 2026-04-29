@@ -13,7 +13,7 @@ public class Database {
 
     public static void main (String[] args) {
         try {
-            Database db = new Database("22", "OdB53ZcJ");
+            Database db = new Database("", "");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (ClassNotFoundException e) {
