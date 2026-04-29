@@ -371,7 +371,7 @@ public class GradeManager {
         String password = setup.nextLine().trim();
 
         this.db = new Database(host, port, schema, dbUser, password);
-        System.out.println("Connected to " + schema + " on " + host + ":" + port);
+        System.out.println("Attempting to connect to " + schema + " on " + host + ":" + port + "...");
         System.out.println();
     }
 
