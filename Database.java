@@ -18,7 +18,7 @@ public class Database {
     public Database(String remotePort, String dbPassword) throws ClassNotFoundException, SQLException {
         //Load driver class file
         Class.forName("com.mysql.cj.jdbc.Driver");
-        connection = DriverManager.getConnection("jdbc:mysql://onyx.boisestate.edu" + remotePort + "/test?verifyServerCertificate=false&useSSL=true", "msandbox", dbPassword);
+        connection = DriverManager.getConnection("jdbc:mysql://onyx.boisestate.edu:" + remotePort + "/test?verifyServerCertificate=false&useSSL=true", "msandbox", dbPassword);
         statement = connection.createStatement();
     }
 
@@ -102,7 +102,7 @@ public class Database {
      * TODO: Rewrite method signature to include params and proper return, and make
      */
     public boolean studentExists() {
-
+        return false;
     }
 
     /**
@@ -171,6 +171,7 @@ public class Database {
         } finally {
             connection.setAutoCommit(true);
         }
+        return results;
     }
 
 }

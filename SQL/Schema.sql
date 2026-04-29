@@ -54,7 +54,7 @@ CREATE TABLE Assigned (
     Student_ID int not null,
     Assignment_ID int not null,
     grade decimal,
-    CONSTRAINT Assignment_ibfk_1 FOREIGN KEY (Assignment_ID) REFERENCES Assignment (ID),
-    CONSTRAINT Assignment_ibfk_2 FOREIGN KEY (Student_ID) REFERENCES Student (ID),
+    CONSTRAINT Assigned_ibfk_1 FOREIGN KEY (Assignment_ID) REFERENCES Assignment (ID),
+    CONSTRAINT Assigned_ibfk_2 FOREIGN KEY (Student_ID) REFERENCES Student (ID),
     PRIMARY KEY (Student_ID, Assignment_ID)
 );
