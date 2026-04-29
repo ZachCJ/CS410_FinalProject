@@ -1,6 +1,9 @@
 import java.sql.*;
 import java.util.Arrays;
 
+
+import java.sql.SQLException;
+
 /**
  * The Database class handles all interactions with the database that the program needs to make
  * @author Kaleb VanderSys, Zachary Johnston
@@ -15,12 +18,15 @@ public class Database {
      * Source for jdbc connection: https://www.geeksforgeeks.org/java/establishing-jdbc-connection-in-java/
      */
     public Database() throws ClassNotFoundException, SQLException {
-        //Load driver class file
-        Class.forName("oracle.jdbc.OracleDriver");
-        DriverManager.registerDriver(new oracle.jdbc.driver.OracleDriver());
-        Connection connection = DriverManager.getConnection(url, user, password);
-        String url = "jdbc:mysql://*url*:port";
-        statement = connection.createStatement();
+//        String url  = "jdbc:mysql://localhost:3306/gradebook";
+//        String user = "root";
+//        String password = "yourpassword";
+//        //Load driver class file
+//        Class.forName("oracle.jdbc.OracleDriver");
+//        DriverManager.registerDriver(new oracle.jdbc.driver.OracleDriver());
+//        Connection connection = DriverManager.getConnection(url, user, password);
+//        String url = "jdbc:mysql://*url*:port";
+//        statement = connection.createStatement();
     }
 
     //////////////////////////////
@@ -103,7 +109,7 @@ public class Database {
      * TODO: Rewrite method signature to include params and proper return, and make
      */
     public boolean studentExists() {
-
+    return false;
     }
 
     /**
