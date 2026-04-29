@@ -117,7 +117,7 @@ public class GradeManager {
 
         System.out.printf("[new-class] course=%s term=%s section=%d desc=%s%n",
                 courseNum, term, section, description);
-         db.createClass(courseNum, term, section, description);
+        db.createClass(courseNum, term, section, description);
     }
 
     /**
@@ -125,7 +125,7 @@ public class GradeManager {
      */
     private void handleListClasses() {
         System.out.println("[list-classes]");
-         db.listClassesWithStudents();
+        db.listClassesWithStudents();
     }
 
     /**
@@ -142,7 +142,7 @@ public class GradeManager {
 
         System.out.printf("[select-class] course=%s term=%s section=%s%n",
                 courseNum, term, section);
-         activeClassId = db.selectClass(courseNum, term, section);
+        activeClassId = db.selectClass(courseNum, term, section);
     }
 
     /**
@@ -151,7 +151,7 @@ public class GradeManager {
     private void handleShowClass() {
         requireActiveClass();
         System.out.printf("[show-class] activeClassId=%d%n", activeClassId);
-         db.showClass(activeClassId);
+        db.showClass(activeClassId);
     }
 
     // -------------------------------------------------------------------------
@@ -164,7 +164,7 @@ public class GradeManager {
     private void handleShowCategories() {
         requireActiveClass();
         System.out.println("[show-categories]");
-         db.showCategories(activeClassId);
+        db.showCategories(activeClassId);
     }
 
     /**
@@ -178,7 +178,7 @@ public class GradeManager {
         double weight = parseDoubleArg(args.get(1), "weight");
 
         System.out.printf("[add-category] name=%s weight=%.2f%n", name, weight);
-         db.addCategory(activeClassId, name, weight);
+        db.addCategory(activeClassId, name, weight);
     }
 
     /**
@@ -187,7 +187,7 @@ public class GradeManager {
     private void handleShowAssignments() {
         requireActiveClass();
         System.out.println("[show-assignments]");
-         db.showAssignments(activeClassId);
+        db.showAssignments(activeClassId);
     }
 
     /**
@@ -204,7 +204,7 @@ public class GradeManager {
 
         System.out.printf("[add-assignment] name=%s category=%s desc=%s points=%d%n",
                 name, category, description, points);
-         db.addAssignment(activeClassId, name, category, description, points);
+        db.addAssignment(activeClassId, name, category, description, points);
     }
 
     // -------------------------------------------------------------------------
@@ -225,7 +225,7 @@ public class GradeManager {
         if (args.size() == 1) {
             // Enroll existing student
             System.out.printf("[add-student] enroll existing: username=%s%n", username);
-             db.enrollStudent(activeClassId, username);
+            db.enrollStudent(activeClassId, username);
         } else if (args.size() == 4) {
             // Add new student and enroll
             String studentId = args.get(1);
@@ -233,7 +233,7 @@ public class GradeManager {
             String firstName = args.get(3);
             System.out.printf("[add-student] new: username=%s id=%s name=%s %s%n",
                     username, studentId, firstName, lastName);
-             db.addStudent(activeClassId, username, studentId, lastName, firstName);
+            db.addStudent(activeClassId, username, studentId, lastName, firstName);
         } else {
             throw new IllegalArgumentException(
                     "add-student takes 1 arg (enroll existing) or 4 args (add new). Got " + args.size());
@@ -251,11 +251,11 @@ public class GradeManager {
 
         if (args.isEmpty()) {
             System.out.println("[show-students] all");
-             db.getStudents(activeClassId);
+            db.getStudents(activeClassId);
         } else {
             String search = args.get(0);
             System.out.printf("[show-students] search='%s'%n", search);
-             db.getStudents(activeClassId, search);
+            db.getStudents(activeClassId, search);
         }
     }
 
@@ -276,7 +276,7 @@ public class GradeManager {
 
         System.out.printf("[grade] assignment=%s username=%s grade=%.2f%n",
                 assignmentName, username, grade);
-         db.assignGrade(activeClassId, assignmentName, username, grade);
+        db.assignGrade(activeClassId, assignmentName, username, grade);
     }
 
     /**
@@ -288,7 +288,7 @@ public class GradeManager {
         String username = args.get(0);
 
         System.out.printf("[student-grades] username=%s%n", username);
-         db.getGradesForStudent(activeClassId, username);
+        db.getGradesForStudent(activeClassId, username);
     }
 
     /**
@@ -297,7 +297,7 @@ public class GradeManager {
     private void handleGradebook() {
         requireActiveClass();
         System.out.println("[gradebook]");
-         db.getCurrentClassGrades(activeClassId);
+        db.getCurrentClassGrades(activeClassId);
     }
 
     // -------------------------------------------------------------------------
@@ -324,7 +324,7 @@ public class GradeManager {
     // Main loop
     // -------------------------------------------------------------------------
     public void run() throws SQLException, ClassNotFoundException {
-        this.db = new Database();
+        promptConnectionInfo();
         Scanner scanner = new Scanner(System.in);
         System.out.print("> ");
 
@@ -336,6 +336,43 @@ public class GradeManager {
             }
             System.out.print("> ");
         }
+    }
+
+    /**
+     * Prompts the user for database connection info at startup,
+     * then initializes the Database connection.
+     */
+    private void promptConnectionInfo() throws SQLException, ClassNotFoundException {
+        Scanner setup = new Scanner(System.in);
+
+        System.out.print("Enter database host (default: localhost): ");
+        String host = setup.nextLine().trim();
+        if (host.isEmpty()) host = "localhost";
+
+        System.out.print("Enter port (default: 3306): ");
+        String portStr = setup.nextLine().trim();
+        int port = 3306;
+        if (!portStr.isEmpty()) {
+            try {
+                port = Integer.parseInt(portStr);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid port, using default 3306.");
+            }
+        }
+
+        System.out.print("Enter schema/database name: ");
+        String schema = setup.nextLine().trim();
+
+        System.out.print("Enter database username (default: root): ");
+        String dbUser = setup.nextLine().trim();
+        if (dbUser.isEmpty()) dbUser = "root";
+
+        System.out.print("Enter database password: ");
+        String password = setup.nextLine().trim();
+
+        this.db = new Database(host, port, schema, dbUser, password);
+        System.out.println("Connected to " + schema + " on " + host + ":" + port);
+        System.out.println();
     }
 
     private void printHelp() {

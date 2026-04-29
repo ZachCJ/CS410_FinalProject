@@ -3,6 +3,7 @@ import java.util.Arrays;
 
 /**
  * The Database class handles all interactions with the database.
+ *
  * @author Kaleb VanderSys, Zachary Johnston
  * 4-29-2026
  */
@@ -12,16 +13,21 @@ public class Database {
     private Statement statement;
 
     /**
-     * Establishes a connection to the MySQL database.
-     * TODO: fill in url, user, password and uncomment when ready to connect.
+     * Establishes a connection using user-supplied connection info.
+     *
+     * @param host     database host e.g. "localhost"
+     * @param port     database port e.g. 3306
+     * @param schema   database/schema name e.g. "gradebook"
+     * @param user     database username
+     * @param password database password
      */
-    public Database() throws ClassNotFoundException, SQLException {
-        // String url      = "jdbc:mysql://localhost:3306/gradebook";
-        // String user     = "root";
-        // String password = "yourpassword";
-        // Class.forName("com.mysql.cj.jdbc.Driver");
-        // connection = DriverManager.getConnection(url, user, password);
-        // statement  = connection.createStatement();
+    public Database(String host, int port, String schema, String user, String password)
+            throws ClassNotFoundException, SQLException {
+        String url = "jdbc:mysql://" + host + ":" + port + "/" + schema;
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        connection = DriverManager.getConnection(url, user, password);
+        statement  = connection.createStatement();
+        System.out.println("Connected successfully.");
     }
 
     //////////////////////////////
