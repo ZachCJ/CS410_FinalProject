@@ -11,25 +11,44 @@ public class Database {
     private Statement statement;
     private Connection connection;
 
-    public static void main (String[] args) {
+    /**
+     * Constructor
+     *  Initializes database connection
+     * @param remotePort - the port the mysql database is one
+     * @param dbPassword - the password to your database
+     * @param schemaName - the name of the target schema
+     */
+    public Database(String remotePort, String dbPassword, String schemaName) {
+        //Load driver class file
         try {
-            Database db = new Database("", "");
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:" + remotePort + "/" + schemaName + "?verifyServerCertificate=false&useSSL=true&maxAllowedPacket=65535", "msandbox", dbPassword);
+            statement = connection.createStatement();
         } catch (SQLException e) {
+            System.err.println("Failed to establish connection to database");
+            System.err.println(e.getMessage());
+            System.err.println("Stack Trace: " + Arrays.toString(e.getStackTrace()));
             throw new RuntimeException(e);
         } catch (ClassNotFoundException e) {
+            System.err.println("Error with jdbc Driver dependency");
+            System.err.println(e.getMessage());
+            System.err.println("Stack Trace: " + Arrays.toString(e.getStackTrace()));
             throw new RuntimeException(e);
         }
     }
 
     /**
-     * TODO: Test and finish
-     * Source for jdbc connection: https://www.geeksforgeeks.org/java/establishing-jdbc-connection-in-java/
+     * Used when closing the program i.e. an "exit" command is entered
      */
-    public Database(String remotePort, String dbPassword) throws ClassNotFoundException, SQLException {
-        //Load driver class file
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        connection = DriverManager.getConnection("jdbc:mysql://onyx.boisestate.edu:" + remotePort + "/test?verifyServerCertificate=false&useSSL=true", "msandbox", dbPassword);
-        statement = connection.createStatement();
+    public void closeDatabaseConnection() {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            System.err.println("WARNING FAILED TO CLOSE DATABASE CONNECTION (make sure this was used on an open connection).");
+            System.err.println(e.getMessage());
+            System.err.println("Stack Trace: " + Arrays.toString(e.getStackTrace()));
+            throw new RuntimeException(e);
+        }
     }
 
     //////////////////////////////
