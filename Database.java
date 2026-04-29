@@ -1,32 +1,27 @@
 import java.sql.*;
 import java.util.Arrays;
 
-
-import java.sql.SQLException;
-
 /**
- * The Database class handles all interactions with the database that the program needs to make
+ * The Database class handles all interactions with the database.
  * @author Kaleb VanderSys, Zachary Johnston
  * 4-29-2026
  */
 public class Database {
 
+    private Connection connection;
     private Statement statement;
 
     /**
-     * TODO: Test and finish
-     * Source for jdbc connection: https://www.geeksforgeeks.org/java/establishing-jdbc-connection-in-java/
+     * Establishes a connection to the MySQL database.
+     * TODO: fill in url, user, password and uncomment when ready to connect.
      */
     public Database() throws ClassNotFoundException, SQLException {
-//        String url  = "jdbc:mysql://localhost:3306/gradebook";
-//        String user = "root";
-//        String password = "yourpassword";
-//        //Load driver class file
-//        Class.forName("oracle.jdbc.OracleDriver");
-//        DriverManager.registerDriver(new oracle.jdbc.driver.OracleDriver());
-//        Connection connection = DriverManager.getConnection(url, user, password);
-//        String url = "jdbc:mysql://*url*:port";
-//        statement = connection.createStatement();
+        // String url      = "jdbc:mysql://localhost:3306/gradebook";
+        // String user     = "root";
+        // String password = "yourpassword";
+        // Class.forName("com.mysql.cj.jdbc.Driver");
+        // connection = DriverManager.getConnection(url, user, password);
+        // statement  = connection.createStatement();
     }
 
     //////////////////////////////
@@ -34,24 +29,51 @@ public class Database {
     //////////////////////////////
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Creates a new class in the database.
+     * Called by: handleNewClass()
+     *
+     * @param courseNum   e.g. "CS410"
+     * @param term        e.g. "Sp20"
+     * @param section     e.g. 1
+     * @param description e.g. "Databases"
      */
-     public void createClass() {
-
+    public void createClass(String courseNum, String term, int section, String description) {
+        // TODO
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Lists all classes with their enrolled student counts.
+     * Called by: handleListClasses()
      */
     public void listClassesWithStudents() {
-
+        // TODO
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Finds and returns the ID of a class matching the given filters.
+     * - 1 arg supplied: most recent term, fails if multiple sections exist
+     * - 2 args supplied: given term, fails if multiple sections exist
+     * - 3 args supplied: exact match on course + term + section
+     * Called by: handleSelectClass() -> sets activeClassId
+     *
+     * @param courseNum course number, always provided
+     * @param term      term string, or null if not provided
+     * @param section   section number, or null if not provided
+     * @return the class_id of the matched class
      */
-    public void getActiveClasses() {
+    public int selectClass(String courseNum, String term, Integer section) {
+        // TODO
+        return -1;
+    }
 
+    /**
+     * Displays details of the currently active class.
+     * Called by: handleShowClass()
+     *
+     * @param activeClassId the currently active class ID
+     */
+    public void showClass(int activeClassId) {
+        // TODO
     }
 
     //////////////////////////////////////////////////
@@ -59,31 +81,49 @@ public class Database {
     //////////////////////////////////////////////////
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Lists all categories and their weights for the active class.
+     * Called by: handleShowCategories()
+     *
+     * @param activeClassId the currently active class ID
      */
-    public void showCategories() {
-
+    public void showCategories(int activeClassId) {
+        // TODO
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Adds a new grading category to the active class.
+     * Called by: handleAddCategory()
+     *
+     * @param activeClassId the currently active class ID
+     * @param name          category name e.g. "Homework"
+     * @param weight        category weight e.g. 40.0
      */
-    public void addCategory() {
-
+    public void addCategory(int activeClassId, String name, double weight) {
+        // TODO
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Lists all assignments grouped by category for the active class.
+     * Called by: handleShowAssignments()
+     *
+     * @param activeClassId the currently active class ID
      */
-    public void showAssignment() {
-
+    public void showAssignments(int activeClassId) {
+        // TODO
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Adds a new assignment to the active class.
+     * Called by: handleAddAssignment()
+     *
+     * @param activeClassId the currently active class ID
+     * @param name          assignment name e.g. "HW1"
+     * @param category      category name e.g. "Homework"
+     * @param description   assignment description
+     * @param points        total possible points
      */
-    public void addAssignment() {
-
+    public void addAssignment(int activeClassId, String name, String category, String description, int points) {
+        // TODO
     }
 
     //////////////////////////////////
@@ -91,47 +131,81 @@ public class Database {
     //////////////////////////////////
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Adds a new student to the students table and enrolls them in the active class.
+     * If the student already exists and the name differs, updates the name with a warning.
+     * Called by: handleAddStudent() when 4 args are given
+     *
+     * @param activeClassId the currently active class ID
+     * @param username      student username e.g. "jsmith"
+     * @param studentId     student ID number e.g. "123456"
+     * @param lastName      student last name
+     * @param firstName     student first name
      */
-    public void addStudent() {
-
+    public void addStudent(int activeClassId, String username, String studentId, String lastName, String firstName) {
+        // TODO
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Enrolls an already-existing student in the active class.
+     * Prints an error if the student does not exist.
+     * Called by: handleAddStudent() when 1 arg is given
+     *
+     * @param activeClassId the currently active class ID
+     * @param username      student username to enroll
      */
-    public void enrollStudent() {
-
+    public void enrollStudent(int activeClassId, String username) {
+        // TODO
     }
 
     /**
-     * Note: needed for adding new students to check if a student ID is being updated
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Checks whether a student exists in the students table.
+     * Used internally by addStudent() to decide whether to insert or update.
+     *
+     * @param username student username to check
+     * @return true if the student exists, false otherwise
      */
-    public boolean studentExists() {
-    return false;
+    public boolean studentExists(String username) {
+        // TODO
+        return false;
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Shows all students enrolled in the active class.
+     * Called by: handleShowStudents() when no search string is given
+     *
+     * @param activeClassId the currently active class ID
      */
-    public void updateStudent() {
-
+    public void getStudents(int activeClassId) {
+        // TODO
     }
 
     /**
-     * Note: There will be two of these one that uses the current class and one that uses a string match.
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Shows students in the active class whose name or username contains the search string.
+     * Called by: handleShowStudents() when a search string is given
+     *
+     * @param activeClassId the currently active class ID
+     * @param search        case-insensitive substring to match
      */
-    public void getStudents() {
-
+    public void getStudents(int activeClassId, String search) {
+        // TODO
     }
 
-    /**
-     * TODO: Rewrite method signature to include params and proper return, and make
-     */
-    public void assignGrade() {
+    //////////////////////////////////
+    //      Grade Management        //
+    //////////////////////////////////
 
+    /**
+     * Assigns a grade to a student for an assignment. Replaces any existing grade.
+     * Prints a warning if grade exceeds the assignment's max points.
+     * Called by: handleGrade()
+     *
+     * @param activeClassId  the currently active class ID
+     * @param assignmentName name of the assignment
+     * @param username       student username
+     * @param grade          points awarded
+     */
+    public void assignGrade(int activeClassId, String assignmentName, String username, double grade) {
+        // TODO
     }
 
     ///////////////////////////////
@@ -139,17 +213,26 @@ public class Database {
     ///////////////////////////////
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Shows all grades for a student, grouped by category, with subtotals and overall grade.
+     * Reports both total grade (ungraded = 0) and attempted grade (graded only).
+     * Called by: handleStudentGrades()
+     *
+     * @param activeClassId the currently active class ID
+     * @param username      student username
      */
-    public void getGradesForStudent() {
-
+    public void getGradesForStudent(int activeClassId, String username) {
+        // TODO
     }
 
     /**
-     * TODO: Rewrite method signature to include params and proper return, and make
+     * Shows the full gradebook for the active class: all students with their total grades.
+     * Reports both total grade and attempted grade for each student.
+     * Called by: handleGradebook()
+     *
+     * @param activeClassId the currently active class ID
      */
-    public void getCurrentClassGrades() {
-
+    public void getCurrentClassGrades(int activeClassId) {
+        // TODO
     }
 
     //////////////////////////////
@@ -157,12 +240,11 @@ public class Database {
     //////////////////////////////
 
     /**
-     * Takes an input SQL Query and returns its result set. If there is an issue with the query
-     *  this method will print out the error relating to the afflicting query and propagate the
-     *  exception back in the stack.
+     * Executes a SQL SELECT query and returns the ResultSet.
+     * Prints and rethrows any SQLException as a RuntimeException.
      *
-     * @param query - A SQL Query
-     * @return - the ResultSet of the query.
+     * @param query a SQL query string
+     * @return the ResultSet from the query
      */
     private ResultSet executeQuery(String query) {
         try {
@@ -172,5 +254,4 @@ public class Database {
             throw new RuntimeException(e);
         }
     }
-
 }
