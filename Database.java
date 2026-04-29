@@ -11,6 +11,16 @@ public class Database {
     private Statement statement;
     private Connection connection;
 
+    public static void main (String[] args) {
+        try {
+            Database db = new Database("22", "OdB53ZcJ");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * TODO: Test and finish
      * Source for jdbc connection: https://www.geeksforgeeks.org/java/establishing-jdbc-connection-in-java/
