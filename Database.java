@@ -39,6 +39,14 @@ public class Database {
         }
     }
 
+
+    /**
+     * No-arg constructor for unit testing — no DB connection established.
+     */
+    public Database() {
+        // intentionally empty — used for testing parsing logic only
+    }
+
     /**
      * Used when closing the program i.e. an "exit" command is entered
      */
@@ -1002,6 +1010,7 @@ public class Database {
                 SELECT
                     s.username,
                     s.name,
+                    s.ID AS student_id,
                     cat.name                        AS category_name,
                     chc.weight                      AS category_weight,
                     SUM(a.point_value)              AS cat_max,
@@ -1051,8 +1060,8 @@ public class Database {
                     // Print header
                     System.out.println("\nGradebook");
                     System.out.println("=".repeat(65));
-                    System.out.printf("%-20s %-12s %-15s %s%n",
-                            "Username", "Student ID", "Total Grade", "Attempted Grade");
+                    System.out.printf("%-15s %-12s %-25s %10s %15s%n",
+                            "Username", "Student ID", "Name", "Total", "Attempted");
                     System.out.println("-".repeat(65));
 
                     // Accumulators per student (reset when username changes)
@@ -1060,36 +1069,43 @@ public class Database {
                     String currentName = null;
                     double totalScore = 0;
                     double attemptScore = 0;
+                    int currentStudentId = -1;
 
                     while (rs.next()) {
                         String username = rs.getString("username");
                         String name = rs.getString("name");
+                        int studentId = rs.getInt("student_id");
                         double catWeight = rs.getDouble("category_weight");
                         double catMax = rs.getDouble("cat_max");
                         double catEarned = rs.getDouble("cat_earned");
                         double catAttemptMax = rs.getDouble("cat_attempt_max");
                         double catAttemptEarned = rs.getDouble("cat_attempt_earned");
-
                         // Flush previous student when username changes
                         if (!username.equals(currentUsername)) {
                             if (currentUsername != null) {
-                                printGradebookRow(currentUsername, currentName, totalScore, attemptScore);
+                                printGradebookRow(currentUsername, currentStudentId, currentName, totalScore, attemptScore);
                             }
                             currentUsername = username;
                             currentName = name;
+                            currentStudentId = studentId;
                             totalScore = 0;
                             attemptScore = 0;
                         }
 
                         // Rescale this category's weight and accumulate
                         double rescaled = (catWeight / totalWeight) * 100.0;
-                        totalScore += catMax > 0 ? (catEarned / catMax) * rescaled : 0;
-                        attemptScore += catAttemptMax > 0 ? (catAttemptEarned / catAttemptMax) * rescaled : 0;
+                        totalScore += (catMax > 0)
+                                ? (catEarned / catMax) * rescaled
+                                : 0;
+
+                        attemptScore += (catAttemptMax > 0)
+                                ? (catAttemptEarned / catAttemptMax) * rescaled
+                                : 0;
                     }
 
                     // Flush last student
                     if (currentUsername != null) {
-                        printGradebookRow(currentUsername, currentName, totalScore, attemptScore);
+                        printGradebookRow(currentUsername, currentStudentId, currentName, totalScore, attemptScore);
                     }
 
                     System.out.println("=".repeat(65));
@@ -1109,9 +1125,9 @@ public class Database {
      * @param totalScore   weighted total grade (ungraded = 0)
      * @param attemptScore weighted attempted grade (graded only)
      */
-    private void printGradebookRow(String username, String name, double totalScore, double attemptScore) {
-        System.out.printf("%-20s %-30s %6.2f%%  %10.2f%%%n",
-                username, name, totalScore, attemptScore);
+    private void printGradebookRow(String username, int studentId, String name, double totalScore, double attemptScore) {
+        System.out.printf("%-15s %-12d %-25s %8.2f%% %13.2f%%%n",
+                username, studentId, name, totalScore, attemptScore);
     }
 
     //////////////////////////////
