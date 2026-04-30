@@ -13,13 +13,11 @@ public class Database {
     private Statement statement;
 
     /**
-     * Establishes a connection using user-supplied connection info.
-     *
-     * @param host     database host e.g. "localhost"
-     * @param port     database port e.g. 3306
-     * @param schema   database/schema name e.g. "gradebook"
-     * @param user     database username
-     * @param password database password
+     * Constructor
+     *  Initializes database connection
+     * @param remotePort - the port the mysql database is one
+     * @param dbPassword - the password to your database
+     * @param schemaName - the name of the target schema
      */
     public Database(int remotePort, String dbPassword, String schemaName) {
         //Load driver class file
