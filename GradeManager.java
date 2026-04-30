@@ -137,12 +137,13 @@ public class GradeManager {
     private void handleSelectClass(List<String> args) {
         requireArgs(args, 1, 3, "select-class <courseNum> [term] [section]");
         String courseNum = args.get(0);
-        String term = args.size() >= 2 ? args.get(1) : null;
-        Integer section = args.size() == 3 ? parseIntArg(args.get(2), "section") : null;
+        String term      = args.size() >= 2 ? args.get(1) : null;
+        Integer section  = args.size() == 3 ? parseIntArg(args.get(2), "section") : null;
 
-        System.out.printf("[select-class] course=%s term=%s section=%s%n",
-                courseNum, term, section);
-        activeClassId = db.selectClass(courseNum, term, section);
+        int result = db.selectClass(courseNum, term, section);
+        if (result != -1) {
+            activeClassId = result;
+        }
     }
 
     /**
@@ -350,7 +351,7 @@ public class GradeManager {
 
         System.out.print("Enter schema/database name: ");
         String schema = setup.nextLine().trim();
-        
+
         System.out.print("Enter database password: ");
         String password = setup.nextLine().trim();
 

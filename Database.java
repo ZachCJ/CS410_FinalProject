@@ -65,7 +65,18 @@ public class Database {
      * @param description e.g. "Databases"
      */
     public void createClass(String courseNum, String term, int section, String description) {
-        // TODO
+        String sql = "INSERT INTO Class (course_num, term, section_num, description) VALUES (?, ?, ?, ?)";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, courseNum);
+            ps.setString(2, term);
+            ps.setString(3, String.valueOf(section));
+            ps.setString(4, description);
+            ps.executeUpdate();
+            System.out.println("Class created: " + courseNum + " " + term + " section " + section);
+        } catch (SQLException e) {
+            System.err.println("Failed to create class: " + e.getMessage());
+        }
     }
 
     /**
@@ -73,24 +84,145 @@ public class Database {
      * Called by: handleListClasses()
      */
     public void listClassesWithStudents() {
-        // TODO
+        String sql = """
+            SELECT c.course_num, c.term, c.section_num, c.description,
+                   COUNT(e.Student_ID) AS student_count
+            FROM Class c
+            LEFT JOIN Enrolled e ON c.ID = e.Class_ID
+            GROUP BY c.ID, c.course_num, c.term, c.section_num, c.description
+            ORDER BY c.term, c.course_num, c.section_num
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            if (!rs.isBeforeFirst()) {
+                System.out.println("No classes found.");
+                return;
+            }
+
+            System.out.printf("%-8s %-6s %-8s %-4s %s%n",
+                    "Course", "Term", "Section", "Students", "Description");
+            System.out.println("-".repeat(60));
+
+            while (rs.next()) {
+                System.out.printf("%-8s %-6s %-8s %-4d %s%n",
+                        rs.getString("course_num"),
+                        rs.getString("term"),
+                        rs.getString("section_num"),
+                        rs.getInt("student_count"),
+                        rs.getString("description"));
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to list classes: " + e.getMessage());
+        }
     }
 
     /**
-     * Finds and returns the ID of a class matching the given filters.
-     * - 1 arg supplied: most recent term, fails if multiple sections exist
-     * - 2 args supplied: given term, fails if multiple sections exist
-     * - 3 args supplied: exact match on course + term + section
+     * Finds the class ID matching the given filters and sets it as active.
+     * - 1 arg: most recent term for that course, fails if multiple sections
+     * - 2 args: given term for that course, fails if multiple sections
+     * - 3 args: exact match on course + term + section, fails if not found
      * Called by: handleSelectClass() -> sets activeClassId
      *
      * @param courseNum course number, always provided
      * @param term      term string, or null if not provided
      * @param section   section number, or null if not provided
-     * @return the class_id of the matched class
+     * @return the ID of the matched class
      */
     public int selectClass(String courseNum, String term, Integer section) {
-        // TODO
-        return -1;
+
+        try {
+            // --- Case 1: only courseNum given, find most recent term ---
+            if (term == null) {
+                String sql = """
+                    SELECT ID, term, section_num
+                    FROM Class
+                    WHERE course_num = ?
+                    AND term = (
+                        SELECT term FROM Class
+                        WHERE course_num = ?
+                        ORDER BY ID DESC
+                        LIMIT 1
+                    )
+                    """;
+                try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                    ps.setString(1, courseNum);
+                    ps.setString(2, courseNum);
+                    return expectExactlyOne(ps, courseNum, null, null);
+                }
+            }
+
+            // --- Case 2: courseNum + term given, find the only section ---
+            if (section == null) {
+                String sql = """
+                    SELECT ID, term, section_num
+                    FROM Class
+                    WHERE course_num = ? AND term = ?
+                    """;
+                try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                    ps.setString(1, courseNum);
+                    ps.setString(2, term);
+                    return expectExactlyOne(ps, courseNum, term, null);
+                }
+            }
+
+            // --- Case 3: exact match on course + term + section ---
+            String sql = """
+                SELECT ID, term, section_num
+                FROM Class
+                WHERE course_num = ? AND term = ? AND section_num = ?
+                """;
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, courseNum);
+                ps.setString(2, term);
+                ps.setString(3, String.valueOf(section));
+                return expectExactlyOne(ps, courseNum, term, section);
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to select class: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    /**
+     * Runs a PreparedStatement that should return exactly one class row.
+     * Prints a clear error and returns -1 if zero or multiple rows are found.
+     *
+     * @param ps      the already-parameterized PreparedStatement to execute
+     * @param course  course num (for error messages)
+     * @param term    term (for error messages, may be null)
+     * @param section section (for error messages, may be null)
+     * @return the class ID, or -1 on failure
+     */
+    private int expectExactlyOne(PreparedStatement ps, String course, String term, Integer section)
+            throws SQLException {
+
+        try (ResultSet rs = ps.executeQuery()) {
+            if (!rs.next()) {
+                System.out.println("No class found for: " + course
+                        + (term != null ? " " + term : "")
+                        + (section != null ? " section " + section : ""));
+                return -1;
+            }
+
+            int classId = rs.getInt("ID");
+            String foundTerm = rs.getString("term");
+            String foundSection = rs.getString("section_num");
+
+            // Check if there's more than one result
+            if (rs.next()) {
+                System.out.println("Multiple sections found for " + course
+                        + (term != null ? " " + term : " (most recent term: " + foundTerm + ")")
+                        + ". Please be more specific.");
+                return -1;
+            }
+
+            System.out.println("Selected: " + course + " " + foundTerm + " section " + foundSection);
+            return classId;
+        }
     }
 
     /**
