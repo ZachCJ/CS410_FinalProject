@@ -21,3 +21,7 @@ To compile:
 
 To run: 
 ```java GradeManager```
+
+## Testing
+
+Mostly just user testing, but one Junit test file, GradeManagerTest
