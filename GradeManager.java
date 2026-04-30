@@ -345,10 +345,6 @@ public class GradeManager {
     private void promptConnectionInfo() throws SQLException, ClassNotFoundException {
         Scanner setup = new Scanner(System.in);
 
-        System.out.print("Enter database host (default: localhost): ");
-        String host = setup.nextLine().trim();
-        if (host.isEmpty()) host = "localhost";
-
         System.out.print("Enter port (default: 3306): ");
         String portStr = setup.nextLine().trim();
         int port = 3306;
@@ -363,15 +359,12 @@ public class GradeManager {
         System.out.print("Enter schema/database name: ");
         String schema = setup.nextLine().trim();
 
-        System.out.print("Enter database username (default: root): ");
-        String dbUser = setup.nextLine().trim();
-        if (dbUser.isEmpty()) dbUser = "root";
 
         System.out.print("Enter database password: ");
         String password = setup.nextLine().trim();
 
-        this.db = new Database(host, port, schema, dbUser, password);
-        System.out.println("Attempting to connect to " + schema + " on " + host + ":" + port + "...");
+        this.db = new Database(port, schema, password);
+        System.out.println("Attempting to connect to " + schema + " on " + ":" + port + "...");
         System.out.println();
     }
 
