@@ -22,11 +22,22 @@ public class Database {
      * @param password database password
      */
     public Database(int remotePort, String dbPassword, String schemaName) {
-        String url = "jdbc:mysql://" + host + ":" + port + "/" + schema;
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        connection = DriverManager.getConnection(url, user, password);
-        statement  = connection.createStatement();
-        System.out.println("Connected successfully.");
+        //Load driver class file
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:" + remotePort + "/" + schemaName + "?verifyServerCertificate=false&useSSL=true&maxAllowedPacket=65535", "msandbox", dbPassword);
+            statement = connection.createStatement();
+        } catch (SQLException e) {
+            System.err.println("Failed to establish connection to database");
+            System.err.println(e.getMessage());
+            System.err.println("Stack Trace: " + Arrays.toString(e.getStackTrace()));
+            throw new RuntimeException(e);
+        } catch (ClassNotFoundException e) {
+            System.err.println("Error with jdbc Driver dependency");
+            System.err.println(e.getMessage());
+            System.err.println("Stack Trace: " + Arrays.toString(e.getStackTrace()));
+            throw new RuntimeException(e);
+        }
     }
 
     //////////////////////////////
