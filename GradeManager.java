@@ -67,6 +67,12 @@ public class GradeManager {
                 case "help" -> printHelp();
                 case "quit", "exit" -> {
                     System.out.println("Goodbye!");
+                    try {
+                        db.closeDatabaseConnection();
+                    } catch (RuntimeException e) {
+                        System.err.println("Error occurred on close.");
+                        System.exit(2);
+                    }
                     System.exit(0);
                 }
                 default -> System.out.println("Unknown command: '" + cmd + "'. Type 'help' for a list of commands.");
@@ -178,7 +184,7 @@ public class GradeManager {
         String name = args.get(0);
         double weight = parseDoubleArg(args.get(1), "weight");
 
-        System.out.printf("[add-category] name=%s weight=%.2f%n", name, weight);
+        System.out.printf("[add-category] name=%s weight=%.2f%n", name, weight * 100);
         db.addCategory(activeClassId, name, weight);
     }
 
@@ -373,6 +379,7 @@ public class GradeManager {
                 Category & Assignment Management:
                   show-categories
                   add-category <name> <weight>
+                        (Note: Enter weight in as a decimal value i.e. 1 = 100%, 0.1 = 10%)
                   show-assignments
                   add-assignment <name> <category> <description> <points>
                 
