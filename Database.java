@@ -40,6 +40,20 @@ public class Database {
         }
     }
 
+    /**
+     * Used when closing the program i.e. an "exit" command is entered
+     */
+    public void closeDatabaseConnection() {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            System.err.println("WARNING FAILED TO CLOSE DATABASE CONNECTION (make sure this was used on an open connection).");
+            System.err.println(e.getMessage());
+            System.err.println("Stack Trace: " + Arrays.toString(e.getStackTrace()));
+            throw new RuntimeException(e);
+        }
+    }
+
     //////////////////////////////
     //      Class Management    //
     //////////////////////////////
