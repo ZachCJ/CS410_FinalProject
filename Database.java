@@ -21,8 +21,7 @@ public class Database {
      * @param user     database username
      * @param password database password
      */
-    public Database(String host, int port, String schema, String user, String password)
-            throws ClassNotFoundException, SQLException {
+    public Database(int remotePort, String dbPassword, String schemaName) {
         String url = "jdbc:mysql://" + host + ":" + port + "/" + schema;
         Class.forName("com.mysql.cj.jdbc.Driver");
         connection = DriverManager.getConnection(url, user, password);
