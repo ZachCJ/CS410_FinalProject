@@ -68,13 +68,8 @@ public class GradeManager {
                 case "help" -> printHelp();
                 case "quit", "exit" -> {
                     System.out.println("Goodbye!");
-                    try {
-                        db.closeDatabaseConnection();
-                        scanner.close();
-                    } catch (RuntimeException e) {
-                        System.err.println("Error occurred on close.");
-                        System.exit(2);
-                    }
+                    db.closeDatabaseConnection();
+                    scanner.close();                    // ← close once, outside the try
                     System.exit(0);
                 }
                 default -> System.out.println("Unknown command: '" + cmd + "'. Type 'help' for a list of commands.");
@@ -333,8 +328,8 @@ public class GradeManager {
     // Main loop
     // -------------------------------------------------------------------------
     public void run() throws SQLException, ClassNotFoundException {
-        promptConnectionInfo();
-        scanner = new Scanner(System.in);
+        scanner = new Scanner(System.in);  // ← initialize FIRST
+        promptConnectionInfo(scanner);     // ← pass it in
         System.out.print("> ");
 
         while (scanner.hasNextLine()) {
@@ -347,28 +342,22 @@ public class GradeManager {
         }
     }
 
-    /**
-     * Prompts the user for database connection info at startup,
-     * then initializes the Database connection.
-     */
-    private void promptConnectionInfo() throws SQLException, ClassNotFoundException {
-        Scanner setup = new Scanner(System.in);
-
+    private void promptConnectionInfo(Scanner scanner) throws SQLException, ClassNotFoundException {
+        // same as before, but use the passed-in scanner instead of a local one
         System.out.print("Enter port: ");
-        String port = setup.nextLine().trim();
+        String port = scanner.nextLine().trim();
 
         System.out.print("Enter schema/database name: ");
-        String schema = setup.nextLine().trim();
+        String schema = scanner.nextLine().trim();
 
         System.out.print("Enter database password: ");
-        String password = setup.nextLine().trim();
+        String password = scanner.nextLine().trim();
 
-        System.out.println("Attempting to connect to " + schema + " on " + ":" + port + "...");
+        System.out.println("Attempting to connect to " + schema + " on :" + port + "...");
         this.db = new Database(port, password, schema);
         System.out.println("Connection Succeeded!");
-        System.out.println("Type help for database commands");
-        System.out.println();
-        setup.close();
+        System.out.println("Type help for database commands\n");
+        // ← NO setup.close() here anymore
     }
 
     private void printHelp() {
