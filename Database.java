@@ -342,7 +342,7 @@ public class Database {
             System.out.println("Category '" + name + "' added with weight " + weight + "%");
 
         } catch (SQLException e) {
-            // If anything fails, roll back both inserts
+            // If anything fails, undo both inserts
             try {
                 connection.rollback();
             } catch (SQLException ex) {
@@ -388,7 +388,7 @@ public class Database {
                 while (rs.next()) {
                     String category = rs.getString("category_name");
 
-                    // Print category header whenever we enter a new category
+                    // Print category header whenever for each new category
                     if (!category.equals(currentCategory)) {
                         currentCategory = category;
                         System.out.println("\n[ " + category + " ]");
@@ -420,8 +420,6 @@ public class Database {
      * @param points        total possible points
      */
     public void addAssignment(int activeClassId, String name, String category, String description, int points) {
-
-        // Step 1: look up the category ID — must belong to this class
         String lookupSql = """
                 SELECT cat.ID
                 FROM Category cat
@@ -464,7 +462,6 @@ public class Database {
             }
 
         } catch (SQLException e) {
-            // Schema has UNIQUE KEY (name, Class_ID) so duplicate names are caught here
             if (e.getMessage().contains("Duplicate entry")) {
                 System.out.println("An assignment named '" + name + "' already exists in this class.");
             } else {
@@ -607,14 +604,14 @@ public class Database {
             if (e.getMessage().contains("Duplicate entry")) {
                 System.out.println("Student '" + username + "' is already enrolled in this class.");
             } else {
-                throw e; // anything else is a real error, propagate it up
+                throw e;
             }
         }
     }
 
     /**
      * Checks whether a student exists in the students table.
-     * Used internally by addStudent() to decide whether to insert or update.
+     * Can be used internally by addStudent() to decide whether to insert or update.
      *
      * @param username student username to check
      * @return true if the student exists, false otherwise
@@ -626,7 +623,7 @@ public class Database {
             ps.setString(1, username);
 
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next(); // true if at least one row found
+                return rs.next();
             }
 
         } catch (SQLException e) {
@@ -722,7 +719,6 @@ public class Database {
                 WHERE s.username = ? AND e.Class_ID = ?
                 """;
 
-        // INSERT ... ON DUPLICATE KEY UPDATE handles both insert and replace
         String upsertSql = """
                 INSERT INTO Assigned (Student_ID, Assignment_ID, grade)
                 VALUES (?, ?, ?)
@@ -874,25 +870,24 @@ public class Database {
                     System.out.println("=".repeat(60));
 
                     // Accumulators for overall grade
-                    double totalEarned = 0; // sum of weighted category scores (all assignments)
-                    double attemptEarned = 0; // sum of weighted category scores (attempted only)
+                    double totalEarned = 0;
+                    double attemptEarned = 0;
 
                     // Per-category accumulators (reset each category)
                     String currentCategory = null;
                     double catWeight = 0;
-                    double catMaxTotal = 0; // total possible points in category
-                    double catEarnedTotal = 0; // points earned (ungraded = 0)
-                    double catAttemptMax = 0; // possible points for attempted assignments only
-                    double catAttemptEarned = 0; // points earned on attempted assignments
+                    double catMaxTotal = 0;
+                    double catEarnedTotal = 0;
+                    double catAttemptMax = 0;
+                    double catAttemptEarned = 0;
 
-                    // We'll collect rows so we can flush each category when it changes
                     // Store current row data to process after detecting category change
                     boolean firstRow = true;
 
                     // Buffer: re-read into local vars each iteration
                     String rowCategory, rowAssignment;
                     double rowWeight, rowMax;
-                    Double rowEarned; // null if ungraded
+                    Double rowEarned;
 
                     // Use a do-while pattern by peeking ahead isn't easy with ResultSet,
                     // so we flush category totals when category changes or at end
@@ -906,7 +901,6 @@ public class Database {
                         // Flush previous category when we enter a new one
                         if (!rowCategory.equals(currentCategory)) {
                             if (currentCategory != null) {
-                                // Print subtotal for finished category and accumulate overall
                                 double[] subtotals = flushCategory(currentCategory, catWeight,
                                         totalWeight, catMaxTotal, catEarnedTotal,
                                         catAttemptMax, catAttemptEarned);
@@ -1004,9 +998,6 @@ public class Database {
                 """;
 
         // For each student, compute their weighted total and attempted scores in SQL.
-        // - total:    ungraded assignments count as 0
-        // - attempted: only assignments they have a grade for
-        // Rescaling happens in Java once we have total_weight.
         String gradebookSql = """
                 SELECT
                     s.username,
@@ -1131,6 +1122,8 @@ public class Database {
      * Executes a SQL SELECT query and returns the ResultSet.
      * Prints and rethrows any SQLException as a RuntimeException.
      *
+     * Decided not to use because Prepared statement is better
+     * Added Transactions to methods where commits are connected
      * @param query - A SQL Query
      * @return - the ResultSet of the query.
      * @throws SQLException - thrown in the case the connection rollback fails
