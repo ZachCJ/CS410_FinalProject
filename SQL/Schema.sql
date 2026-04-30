@@ -24,7 +24,7 @@ CREATE TABLE Assignment (
     ID int not null auto_increment,
     name varchar(60) not null,
     description text,
-    point_value decimal,
+    point_value decimal(10,2), -- Why is the default to not store decimals
     Category_ID int not null,
     Class_ID int not null,
     CONSTRAINT Assignment_ibfk_1 FOREIGN KEY (Category_ID) REFERENCES Category (ID),
