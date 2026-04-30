@@ -134,7 +134,7 @@ public class Database {
     public int selectClass(String courseNum, String term, Integer section) {
 
         try {
-            // --- Case 1: only courseNum given, find most recent term ---
+            // Case 1: only courseNum given, find most recent term ---
             if (term == null) {
                 String sql = """
                     SELECT ID, term, section_num
@@ -485,7 +485,6 @@ public class Database {
         String fullName = firstName + " " + lastName;
 
         String lookupSql = "SELECT ID, name FROM Student WHERE username = ?";
-        String insertSql = "INSERT INTO Student (name, username) VALUES (?, ?)";
         String updateSql = "UPDATE Student SET name = ? WHERE username = ?";
 
         try {
@@ -518,18 +517,15 @@ public class Database {
             }
 
             // Step 2: student doesn't exist — insert them
-            int newStudentId;
-            try (PreparedStatement ps = connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, fullName);
-                ps.setString(2, username);
-                ps.executeUpdate();
+            String insertSql = "INSERT INTO Student (ID, name, username) VALUES (?, ?, ?)";
 
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (!keys.next()) {
-                        throw new SQLException("Failed to retrieve generated Student ID.");
-                    }
-                    newStudentId = keys.getInt(1);
-                }
+            int newStudentId = parseStudentId(studentId);
+
+            try (PreparedStatement ps = connection.prepareStatement(insertSql)) {
+                ps.setInt(1, newStudentId);
+                ps.setString(2, fullName);
+                ps.setString(3, username);
+                ps.executeUpdate();
             }
 
             // Step 3: enroll the newly created student
@@ -537,8 +533,10 @@ public class Database {
             System.out.println("Student '" + fullName + "' (" + username + ") added and enrolled.");
 
         } catch (SQLException e) {
-            System.err.println("Failed to add student: " + e.getMessage());
-        }
+        System.err.println("Failed to add student: " + e.getMessage());
+    } catch (IllegalArgumentException e) {
+        System.out.println("Error: " + e.getMessage());
+    }
     }
 
     /**
@@ -1133,5 +1131,16 @@ public class Database {
             connection.setAutoCommit(true);
         }
         return results;
+    }
+
+    /**
+     * Parses studentId string to int, throwing a clear error if invalid.
+     */
+    private int parseStudentId(String studentId) {
+        try {
+            return Integer.parseInt(studentId);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Student ID must be a number, got: " + studentId);
+        }
     }
 }
