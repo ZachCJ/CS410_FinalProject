@@ -372,6 +372,7 @@ public class GradeManager {
                 
                 Class Management:
                   new-class <courseNum> <term> <section> <description>
+                        (Note: Enter multi-worded description inside "" i.e. "The Best Class Ever")
                   list-classes
                   select-class <courseNum> [term] [section]
                   show-class
