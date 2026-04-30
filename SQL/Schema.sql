@@ -14,7 +14,7 @@ CREATE table Category (
 );
 
 CREATE TABLE Student (
-    ID int not null auto_increment,
+    ID int not null,
     name varchar(45),
     username varchar(60),
     PRIMARY KEY (ID)
