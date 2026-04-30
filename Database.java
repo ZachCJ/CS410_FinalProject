@@ -3,7 +3,6 @@ import java.util.Arrays;
 
 /**
  * The Database class handles all interactions with the database.
- *
  * @author Kaleb VanderSys, Zachary Johnston
  * 4-29-2026
  */
