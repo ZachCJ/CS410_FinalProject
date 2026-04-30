@@ -345,21 +345,12 @@ public class GradeManager {
     private void promptConnectionInfo() throws SQLException, ClassNotFoundException {
         Scanner setup = new Scanner(System.in);
 
-        System.out.print("Enter port (default: 3306): ");
-        String portStr = setup.nextLine().trim();
-        int port = 3306;
-        if (!portStr.isEmpty()) {
-            try {
-                port = Integer.parseInt(portStr);
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid port, using default 3306.");
-            }
-        }
+        System.out.print("Enter port: ");
+        String port = setup.nextLine().trim();
 
         System.out.print("Enter schema/database name: ");
         String schema = setup.nextLine().trim();
-
-
+        
         System.out.print("Enter database password: ");
         String password = setup.nextLine().trim();
 

@@ -18,7 +18,7 @@ public class Database {
      * @param dbPassword - the password to your database
      * @param schemaName - the name of the target schema
      */
-    public Database(int remotePort, String dbPassword, String schemaName) {
+    public Database(String remotePort, String dbPassword, String schemaName) {
         //Load driver class file
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
