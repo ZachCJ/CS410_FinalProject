@@ -4,6 +4,11 @@
 * Class: CS410 Section #001
 * Semester: Spring 2026
 
+
+## Project Showcase Link
+
+https://youtu.be/8DSroTZivBw
+
 ## Overview
 
 This is a command line grade manager for users on a locally hosted database.
