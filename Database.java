@@ -232,7 +232,27 @@ public class Database {
      * @param activeClassId the currently active class ID
      */
     public void showClass(int activeClassId) {
-        // TODO
+        String sql = "SELECT course_num, term, section_num, description FROM Class WHERE ID = ?";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, activeClassId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    System.out.println("No class found with ID " + activeClassId);
+                    return;
+                }
+
+                System.out.println("Active Class:");
+                System.out.println("  Course:      " + rs.getString("course_num"));
+                System.out.println("  Term:        " + rs.getString("term"));
+                System.out.println("  Section:     " + rs.getString("section_num"));
+                System.out.println("  Description: " + rs.getString("description"));
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to show class: " + e.getMessage());
+        }
     }
 
     //////////////////////////////////////////////////
@@ -246,7 +266,36 @@ public class Database {
      * @param activeClassId the currently active class ID
      */
     public void showCategories(int activeClassId) {
-        // TODO
+        String sql = """
+            SELECT cat.name, chc.weight
+            FROM ClassHasCategory chc
+            JOIN Category cat ON chc.Category_ID = cat.ID
+            WHERE chc.Class_ID = ?
+            ORDER BY cat.name
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, activeClassId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.isBeforeFirst()) {
+                    System.out.println("No categories found for this class.");
+                    return;
+                }
+
+                System.out.printf("%-20s %s%n", "Category", "Weight");
+                System.out.println("-".repeat(30));
+
+                while (rs.next()) {
+                    System.out.printf("%-20s %.2f%%%n",
+                            rs.getString("name"),
+                            rs.getDouble("weight"));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to show categories: " + e.getMessage());
+        }
     }
 
     /**
@@ -258,7 +307,45 @@ public class Database {
      * @param weight        category weight e.g. 40.0
      */
     public void addCategory(int activeClassId, String name, double weight) {
-        // TODO
+        String insertCategory       = "INSERT INTO Category (name) VALUES (?)";
+        String insertClassHasCategory = "INSERT INTO ClassHasCategory (Class_ID, Category_ID, weight) VALUES (?, ?, ?)";
+
+        try {
+            connection.setAutoCommit(false); // start transaction
+
+            // Step 1: insert into Category, get the generated ID back
+            int categoryId;
+            try (PreparedStatement ps = connection.prepareStatement(
+                    insertCategory, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, name);
+                ps.executeUpdate();
+
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (!keys.next()) {
+                        throw new SQLException("Failed to retrieve generated Category ID.");
+                    }
+                    categoryId = keys.getInt(1);
+                }
+            }
+
+            // Step 2: link the new category to the active class with its weight
+            try (PreparedStatement ps = connection.prepareStatement(insertClassHasCategory)) {
+                ps.setInt(1, activeClassId);
+                ps.setInt(2, categoryId);
+                ps.setDouble(3, weight);
+                ps.executeUpdate();
+            }
+
+            connection.commit();
+            System.out.println("Category '" + name + "' added with weight " + weight + "%");
+
+        } catch (SQLException e) {
+            // If anything fails, roll back both inserts
+            try { connection.rollback(); } catch (SQLException ex) { System.err.println("Rollback failed: " + ex.getMessage()); }
+            System.err.println("Failed to add category: " + e.getMessage());
+        } finally {
+            try { connection.setAutoCommit(true); } catch (SQLException e) { System.err.println("Failed to restore autocommit: " + e.getMessage()); }
+        }
     }
 
     /**
