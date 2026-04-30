@@ -1,7 +1,7 @@
 CREATE table Class (
     ID int not null auto_increment ,
-    course_num varchar(5),
-    term varchar(4),
+    course_num varchar(10),
+    term varchar(6),
     section_num varchar(3),
     description text,
     PRIMARY KEY (`ID`)
@@ -14,7 +14,7 @@ CREATE table Category (
 );
 
 CREATE TABLE Student (
-    ID int not null auto_increment,
+    ID int not null,
     name varchar(45),
     username varchar(60),
     PRIMARY KEY (ID)
@@ -24,7 +24,7 @@ CREATE TABLE Assignment (
     ID int not null auto_increment,
     name varchar(60) not null,
     description text,
-    point_value decimal,
+    point_value decimal(10,2), -- Why is the default to not store decimals
     Category_ID int not null,
     Class_ID int not null,
     CONSTRAINT Assignment_ibfk_1 FOREIGN KEY (Category_ID) REFERENCES Category (ID),
@@ -54,7 +54,7 @@ CREATE TABLE Assigned (
     Student_ID int not null,
     Assignment_ID int not null,
     grade decimal,
-    CONSTRAINT Assignment_ibfk_1 FOREIGN KEY (Assignment_ID) REFERENCES Assignment (ID),
-    CONSTRAINT Assignment_ibfk_2 FOREIGN KEY (Student_ID) REFERENCES Student (ID),
+    CONSTRAINT Assigned_ibfk_1 FOREIGN KEY (Assignment_ID) REFERENCES Assignment (ID),
+    CONSTRAINT Assigned_ibfk_2 FOREIGN KEY (Student_ID) REFERENCES Student (ID),
     PRIMARY KEY (Student_ID, Assignment_ID)
 );
