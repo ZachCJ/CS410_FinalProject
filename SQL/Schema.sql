@@ -1,6 +1,6 @@
 CREATE table Class (
     ID int not null auto_increment ,
-    course_num varchar(5),
+    course_num varchar(10),
     term varchar(4),
     section_num varchar(3),
     description text,
