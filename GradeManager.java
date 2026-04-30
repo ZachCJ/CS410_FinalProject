@@ -184,7 +184,7 @@ public class GradeManager {
         String name = args.get(0);
         double weight = parseDoubleArg(args.get(1), "weight");
 
-        System.out.printf("[add-category] name=%s weight=%.2f%n", name, weight * 100);
+        System.out.printf("[add-category] name=%s weight=%.2f%n", name, weight);
         db.addCategory(activeClassId, name, weight);
     }
 
