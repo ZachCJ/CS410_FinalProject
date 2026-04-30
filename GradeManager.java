@@ -6,7 +6,8 @@ import java.util.Scanner;
 public class GradeManager {
 
     Database db;
-    Integer activeClassId = null; // tracks the currently selected class
+    Integer activeClassId = null;
+    Scanner scanner;
 
     // -------------------------------------------------------------------------
     // Tokenizer - splits a raw input line into tokens, respecting quoted strings
@@ -69,6 +70,7 @@ public class GradeManager {
                     System.out.println("Goodbye!");
                     try {
                         db.closeDatabaseConnection();
+                        scanner.close();
                     } catch (RuntimeException e) {
                         System.err.println("Error occurred on close.");
                         System.exit(2);
@@ -332,7 +334,7 @@ public class GradeManager {
     // -------------------------------------------------------------------------
     public void run() throws SQLException, ClassNotFoundException {
         promptConnectionInfo();
-        Scanner scanner = new Scanner(System.in);
+        scanner = new Scanner(System.in);
         System.out.print("> ");
 
         while (scanner.hasNextLine()) {
@@ -366,6 +368,7 @@ public class GradeManager {
         System.out.println("Connection Succeeded!");
         System.out.println("Type help for database commands");
         System.out.println();
+        setup.close();
     }
 
     private void printHelp() {

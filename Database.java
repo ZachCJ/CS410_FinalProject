@@ -1049,6 +1049,7 @@ public class Database {
             try (PreparedStatement ps = connection.prepareStatement(gradebookSql)) {
                 ps.setInt(1, activeClassId);
                 ps.setInt(2, activeClassId);
+                ps.setInt(3, activeClassId);
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.isBeforeFirst()) {
