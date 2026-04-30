@@ -355,7 +355,48 @@ public class Database {
      * @param activeClassId the currently active class ID
      */
     public void showAssignments(int activeClassId) {
-        // TODO
+        String sql = """
+            SELECT cat.name AS category_name, a.name AS assignment_name,
+                   a.description, a.point_value
+            FROM Assignment a
+            JOIN Category cat ON a.Category_ID = cat.ID
+            WHERE a.Class_ID = ?
+            ORDER BY cat.name, a.name
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, activeClassId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.isBeforeFirst()) {
+                    System.out.println("No assignments found for this class.");
+                    return;
+                }
+
+                String currentCategory = null;
+
+                while (rs.next()) {
+                    String category = rs.getString("category_name");
+
+                    // Print category header whenever we enter a new category
+                    if (!category.equals(currentCategory)) {
+                        currentCategory = category;
+                        System.out.println("\n[ " + category + " ]");
+                        System.out.printf("  %-25s %-8s %s%n", "Assignment", "Points", "Description");
+                        System.out.println("  " + "-".repeat(55));
+                    }
+
+                    System.out.printf("  %-25s %-8.0f %s%n",
+                            rs.getString("assignment_name"),
+                            rs.getDouble("point_value"),
+                            rs.getString("description"));
+                }
+                System.out.println();
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to show assignments: " + e.getMessage());
+        }
     }
 
     /**
@@ -369,7 +410,57 @@ public class Database {
      * @param points        total possible points
      */
     public void addAssignment(int activeClassId, String name, String category, String description, int points) {
-        // TODO
+
+        // Step 1: look up the category ID — must belong to this class
+        String lookupSql = """
+            SELECT cat.ID
+            FROM Category cat
+            JOIN ClassHasCategory chc ON cat.ID = chc.Category_ID
+            WHERE chc.Class_ID = ? AND cat.name = ?
+            """;
+
+        String insertSql = """
+            INSERT INTO Assignment (name, description, point_value, Category_ID, Class_ID)
+            VALUES (?, ?, ?, ?, ?)
+            """;
+
+        try {
+            // Step 1: find the category
+            int categoryId;
+            try (PreparedStatement ps = connection.prepareStatement(lookupSql)) {
+                ps.setInt(1, activeClassId);
+                ps.setString(2, category);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        System.out.println("Category '" + category + "' not found in this class. "
+                                + "Use 'show-categories' to see available categories.");
+                        return;
+                    }
+                    categoryId = rs.getInt("ID");
+                }
+            }
+
+            // Step 2: insert the assignment
+            try (PreparedStatement ps = connection.prepareStatement(insertSql)) {
+                ps.setString(1, name);
+                ps.setString(2, description);
+                ps.setInt(3, points);
+                ps.setInt(4, categoryId);
+                ps.setInt(5, activeClassId);
+                ps.executeUpdate();
+                System.out.println("Assignment '" + name + "' added to category '" + category
+                        + "' worth " + points + " points.");
+            }
+
+        } catch (SQLException e) {
+            // Schema has UNIQUE KEY (name, Class_ID) so duplicate names are caught here
+            if (e.getMessage().contains("Duplicate entry")) {
+                System.out.println("An assignment named '" + name + "' already exists in this class.");
+            } else {
+                System.err.println("Failed to add assignment: " + e.getMessage());
+            }
+        }
     }
 
     //////////////////////////////////
@@ -377,30 +468,132 @@ public class Database {
     //////////////////////////////////
 
     /**
-     * Adds a new student to the students table and enrolls them in the active class.
-     * If the student already exists and the name differs, updates the name with a warning.
+     /**
+     * Adds a new student and enrolls them in the active class.
+     * If the student already exists by username:
+     *   - same name: just enrolls them
+     *   - different name: updates the name with a warning, then enrolls
      * Called by: handleAddStudent() when 4 args are given
      *
      * @param activeClassId the currently active class ID
      * @param username      student username e.g. "jsmith"
-     * @param studentId     student ID number e.g. "123456"
+     * @param studentId     student ID number (not stored in current schema)
      * @param lastName      student last name
      * @param firstName     student first name
      */
     public void addStudent(int activeClassId, String username, String studentId, String lastName, String firstName) {
-        // TODO
+        String fullName = firstName + " " + lastName;
+
+        String lookupSql = "SELECT ID, name FROM Student WHERE username = ?";
+        String insertSql = "INSERT INTO Student (name, username) VALUES (?, ?)";
+        String updateSql = "UPDATE Student SET name = ? WHERE username = ?";
+
+        try {
+            // Step 1: check if student already exists
+            try (PreparedStatement ps = connection.prepareStatement(lookupSql)) {
+                ps.setString(1, username);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        // Student already exists
+                        int existingId   = rs.getInt("ID");
+                        String existingName = rs.getString("name");
+
+                        if (!existingName.equals(fullName)) {
+                            // Name mismatch — warn and update
+                            System.out.println("Warning: name for '" + username + "' is changing from '"
+                                    + existingName + "' to '" + fullName + "'.");
+                            try (PreparedStatement update = connection.prepareStatement(updateSql)) {
+                                update.setString(1, fullName);
+                                update.setString(2, username);
+                                update.executeUpdate();
+                            }
+                        }
+
+                        // Enroll in class (student already exists, just link them)
+                        enrollStudentById(activeClassId, existingId, username);
+                        return;
+                    }
+                }
+            }
+
+            // Step 2: student doesn't exist — insert them
+            int newStudentId;
+            try (PreparedStatement ps = connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, fullName);
+                ps.setString(2, username);
+                ps.executeUpdate();
+
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (!keys.next()) {
+                        throw new SQLException("Failed to retrieve generated Student ID.");
+                    }
+                    newStudentId = keys.getInt(1);
+                }
+            }
+
+            // Step 3: enroll the newly created student
+            enrollStudentById(activeClassId, newStudentId, username);
+            System.out.println("Student '" + fullName + "' (" + username + ") added and enrolled.");
+
+        } catch (SQLException e) {
+            System.err.println("Failed to add student: " + e.getMessage());
+        }
     }
 
     /**
-     * Enrolls an already-existing student in the active class.
+     * Enrolls an already-existing student in the active class by username.
      * Prints an error if the student does not exist.
-     * Called by: handleAddStudent() when 1 arg is given
+     * Called by: handleAddStudent() when only 1 arg is given
      *
      * @param activeClassId the currently active class ID
      * @param username      student username to enroll
      */
     public void enrollStudent(int activeClassId, String username) {
-        // TODO
+        String lookupSql = "SELECT ID FROM Student WHERE username = ?";
+
+        try (PreparedStatement ps = connection.prepareStatement(lookupSql)) {
+            ps.setString(1, username);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    System.out.println("No student found with username '" + username + "'. "
+                            + "Use 'add-student <username> <id> <last> <first>' to create them first.");
+                    return;
+                }
+                int studentId = rs.getInt("ID");
+                enrollStudentById(activeClassId, studentId, username);
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to enroll student: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Internal helper: inserts a row into Enrolled for a given class + student.
+     * Handles the case where the student is already enrolled gracefully.
+     *
+     * @param activeClassId the class to enroll into
+     * @param studentId     the Student.ID to enroll
+     * @param username      username (used for print messages only)
+     */
+    private void enrollStudentById(int activeClassId, int studentId, String username) throws SQLException {
+        String sql = "INSERT INTO Enrolled (Class_ID, Student_ID) VALUES (?, ?)";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, activeClassId);
+            ps.setInt(2, studentId);
+            ps.executeUpdate();
+            System.out.println("Student '" + username + "' enrolled in class " + activeClassId + ".");
+        } catch (SQLException e) {
+            // Primary key violation means they're already enrolled
+            if (e.getMessage().contains("Duplicate entry")) {
+                System.out.println("Student '" + username + "' is already enrolled in this class.");
+            } else {
+                throw e; // anything else is a real error, propagate it up
+            }
+        }
     }
 
     /**
