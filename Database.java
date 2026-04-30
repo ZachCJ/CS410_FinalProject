@@ -8,8 +8,8 @@ import java.util.Arrays;
  */
 public class Database {
 
-    private Connection connection;
     private Statement statement;
+    private Connection connection;
 
     /**
      * Constructor
