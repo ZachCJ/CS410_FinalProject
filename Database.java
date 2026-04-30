@@ -347,7 +347,7 @@ public class Database {
             }
 
             connection.commit();
-            System.out.println("Category '" + name + "' added with weight " + weight + "%");
+            System.out.println("Category '" + name + "' added with weight " + weight * 100 + "%");
 
         } catch (SQLException e) {
             // If anything fails, undo both inserts
