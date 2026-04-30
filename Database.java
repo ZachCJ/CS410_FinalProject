@@ -299,7 +299,7 @@ public class Database {
                 while (rs.next()) {
                     System.out.printf("%-20s %.2f%%%n",
                             rs.getString("name"),
-                            rs.getDouble("weight"));
+                            rs.getDouble("weight") * 100);
                 }
             }
 
