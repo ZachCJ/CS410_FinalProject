@@ -270,15 +270,23 @@ public class Database {
      * Executes a SQL SELECT query and returns the ResultSet.
      * Prints and rethrows any SQLException as a RuntimeException.
      *
-     * @param query a SQL query string
-     * @return the ResultSet from the query
+     * @param query - A SQL Query
+     * @return - the ResultSet of the query.
+     * @throws SQLException - thrown in the case the connection rollback fails
      */
-    private ResultSet executeQuery(String query) {
+    private ResultSet executeQuery(String query) throws SQLException {
+        ResultSet results;
         try {
-            return statement.executeQuery(query);
+            connection.setAutoCommit(false);
+           results = statement.executeQuery(query);
+            connection.commit();
         } catch (SQLException e) {
+            connection.rollback();
             System.err.println(e.getMessage() + Arrays.toString(e.getStackTrace()));
             throw new RuntimeException(e);
+        } finally {
+            connection.setAutoCommit(true);
         }
+        return results;
     }
 }
