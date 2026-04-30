@@ -355,7 +355,48 @@ public class Database {
      * @param activeClassId the currently active class ID
      */
     public void showAssignments(int activeClassId) {
-        // TODO
+        String sql = """
+            SELECT cat.name AS category_name, a.name AS assignment_name,
+                   a.description, a.point_value
+            FROM Assignment a
+            JOIN Category cat ON a.Category_ID = cat.ID
+            WHERE a.Class_ID = ?
+            ORDER BY cat.name, a.name
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, activeClassId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.isBeforeFirst()) {
+                    System.out.println("No assignments found for this class.");
+                    return;
+                }
+
+                String currentCategory = null;
+
+                while (rs.next()) {
+                    String category = rs.getString("category_name");
+
+                    // Print category header whenever we enter a new category
+                    if (!category.equals(currentCategory)) {
+                        currentCategory = category;
+                        System.out.println("\n[ " + category + " ]");
+                        System.out.printf("  %-25s %-8s %s%n", "Assignment", "Points", "Description");
+                        System.out.println("  " + "-".repeat(55));
+                    }
+
+                    System.out.printf("  %-25s %-8.0f %s%n",
+                            rs.getString("assignment_name"),
+                            rs.getDouble("point_value"),
+                            rs.getString("description"));
+                }
+                System.out.println();
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to show assignments: " + e.getMessage());
+        }
     }
 
     /**
@@ -369,7 +410,57 @@ public class Database {
      * @param points        total possible points
      */
     public void addAssignment(int activeClassId, String name, String category, String description, int points) {
-        // TODO
+
+        // Step 1: look up the category ID — must belong to this class
+        String lookupSql = """
+            SELECT cat.ID
+            FROM Category cat
+            JOIN ClassHasCategory chc ON cat.ID = chc.Category_ID
+            WHERE chc.Class_ID = ? AND cat.name = ?
+            """;
+
+        String insertSql = """
+            INSERT INTO Assignment (name, description, point_value, Category_ID, Class_ID)
+            VALUES (?, ?, ?, ?, ?)
+            """;
+
+        try {
+            // Step 1: find the category
+            int categoryId;
+            try (PreparedStatement ps = connection.prepareStatement(lookupSql)) {
+                ps.setInt(1, activeClassId);
+                ps.setString(2, category);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        System.out.println("Category '" + category + "' not found in this class. "
+                                + "Use 'show-categories' to see available categories.");
+                        return;
+                    }
+                    categoryId = rs.getInt("ID");
+                }
+            }
+
+            // Step 2: insert the assignment
+            try (PreparedStatement ps = connection.prepareStatement(insertSql)) {
+                ps.setString(1, name);
+                ps.setString(2, description);
+                ps.setInt(3, points);
+                ps.setInt(4, categoryId);
+                ps.setInt(5, activeClassId);
+                ps.executeUpdate();
+                System.out.println("Assignment '" + name + "' added to category '" + category
+                        + "' worth " + points + " points.");
+            }
+
+        } catch (SQLException e) {
+            // Schema has UNIQUE KEY (name, Class_ID) so duplicate names are caught here
+            if (e.getMessage().contains("Duplicate entry")) {
+                System.out.println("An assignment named '" + name + "' already exists in this class.");
+            } else {
+                System.err.println("Failed to add assignment: " + e.getMessage());
+            }
+        }
     }
 
     //////////////////////////////////
@@ -377,30 +468,132 @@ public class Database {
     //////////////////////////////////
 
     /**
-     * Adds a new student to the students table and enrolls them in the active class.
-     * If the student already exists and the name differs, updates the name with a warning.
+     /**
+     * Adds a new student and enrolls them in the active class.
+     * If the student already exists by username:
+     *   - same name: just enrolls them
+     *   - different name: updates the name with a warning, then enrolls
      * Called by: handleAddStudent() when 4 args are given
      *
      * @param activeClassId the currently active class ID
      * @param username      student username e.g. "jsmith"
-     * @param studentId     student ID number e.g. "123456"
+     * @param studentId     student ID number (not stored in current schema)
      * @param lastName      student last name
      * @param firstName     student first name
      */
     public void addStudent(int activeClassId, String username, String studentId, String lastName, String firstName) {
-        // TODO
+        String fullName = firstName + " " + lastName;
+
+        String lookupSql = "SELECT ID, name FROM Student WHERE username = ?";
+        String insertSql = "INSERT INTO Student (name, username) VALUES (?, ?)";
+        String updateSql = "UPDATE Student SET name = ? WHERE username = ?";
+
+        try {
+            // Step 1: check if student already exists
+            try (PreparedStatement ps = connection.prepareStatement(lookupSql)) {
+                ps.setString(1, username);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        // Student already exists
+                        int existingId   = rs.getInt("ID");
+                        String existingName = rs.getString("name");
+
+                        if (!existingName.equals(fullName)) {
+                            // Name mismatch — warn and update
+                            System.out.println("Warning: name for '" + username + "' is changing from '"
+                                    + existingName + "' to '" + fullName + "'.");
+                            try (PreparedStatement update = connection.prepareStatement(updateSql)) {
+                                update.setString(1, fullName);
+                                update.setString(2, username);
+                                update.executeUpdate();
+                            }
+                        }
+
+                        // Enroll in class (student already exists, just link them)
+                        enrollStudentById(activeClassId, existingId, username);
+                        return;
+                    }
+                }
+            }
+
+            // Step 2: student doesn't exist — insert them
+            int newStudentId;
+            try (PreparedStatement ps = connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, fullName);
+                ps.setString(2, username);
+                ps.executeUpdate();
+
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (!keys.next()) {
+                        throw new SQLException("Failed to retrieve generated Student ID.");
+                    }
+                    newStudentId = keys.getInt(1);
+                }
+            }
+
+            // Step 3: enroll the newly created student
+            enrollStudentById(activeClassId, newStudentId, username);
+            System.out.println("Student '" + fullName + "' (" + username + ") added and enrolled.");
+
+        } catch (SQLException e) {
+            System.err.println("Failed to add student: " + e.getMessage());
+        }
     }
 
     /**
-     * Enrolls an already-existing student in the active class.
+     * Enrolls an already-existing student in the active class by username.
      * Prints an error if the student does not exist.
-     * Called by: handleAddStudent() when 1 arg is given
+     * Called by: handleAddStudent() when only 1 arg is given
      *
      * @param activeClassId the currently active class ID
      * @param username      student username to enroll
      */
     public void enrollStudent(int activeClassId, String username) {
-        // TODO
+        String lookupSql = "SELECT ID FROM Student WHERE username = ?";
+
+        try (PreparedStatement ps = connection.prepareStatement(lookupSql)) {
+            ps.setString(1, username);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    System.out.println("No student found with username '" + username + "'. "
+                            + "Use 'add-student <username> <id> <last> <first>' to create them first.");
+                    return;
+                }
+                int studentId = rs.getInt("ID");
+                enrollStudentById(activeClassId, studentId, username);
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to enroll student: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Internal helper: inserts a row into Enrolled for a given class + student.
+     * Handles the case where the student is already enrolled gracefully.
+     *
+     * @param activeClassId the class to enroll into
+     * @param studentId     the Student.ID to enroll
+     * @param username      username (used for print messages only)
+     */
+    private void enrollStudentById(int activeClassId, int studentId, String username) throws SQLException {
+        String sql = "INSERT INTO Enrolled (Class_ID, Student_ID) VALUES (?, ?)";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, activeClassId);
+            ps.setInt(2, studentId);
+            ps.executeUpdate();
+            System.out.println("Student '" + username + "' enrolled in class " + activeClassId + ".");
+        } catch (SQLException e) {
+            // Primary key violation means they're already enrolled
+            if (e.getMessage().contains("Duplicate entry")) {
+                System.out.println("Student '" + username + "' is already enrolled in this class.");
+            } else {
+                throw e; // anything else is a real error, propagate it up
+            }
+        }
     }
 
     /**
@@ -411,8 +604,19 @@ public class Database {
      * @return true if the student exists, false otherwise
      */
     public boolean studentExists(String username) {
-        // TODO
-        return false;
+        String sql = "SELECT ID FROM Student WHERE username = ?";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, username);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next(); // true if at least one row found
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to check if student exists: " + e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -422,7 +626,7 @@ public class Database {
      * @param activeClassId the currently active class ID
      */
     public void getStudents(int activeClassId) {
-        // TODO
+        getStudents(activeClassId, null);
     }
 
     /**
@@ -430,10 +634,47 @@ public class Database {
      * Called by: handleShowStudents() when a search string is given
      *
      * @param activeClassId the currently active class ID
-     * @param search        case-insensitive substring to match
+     * @param search        case-insensitive substring to match, or null for all students
      */
     public void getStudents(int activeClassId, String search) {
-        // TODO
+        String sql = """
+            SELECT s.username, s.name
+            FROM Student s
+            JOIN Enrolled e ON s.ID = e.Student_ID
+            WHERE e.Class_ID = ?
+            """ + (search != null ? "AND (s.name LIKE ? OR s.username LIKE ?) " : "")
+                + "ORDER BY s.name";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, activeClassId);
+
+            if (search != null) {
+                String pattern = "%" + search + "%";
+                ps.setString(2, pattern);
+                ps.setString(3, pattern);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.isBeforeFirst()) {
+                    System.out.println(search != null
+                            ? "No students found matching '" + search + "'."
+                            : "No students enrolled in this class.");
+                    return;
+                }
+
+                System.out.printf("%-20s %s%n", "Username", "Name");
+                System.out.println("-".repeat(40));
+
+                while (rs.next()) {
+                    System.out.printf("%-20s %s%n",
+                            rs.getString("username"),
+                            rs.getString("name"));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to get students: " + e.getMessage());
+        }
     }
 
     //////////////////////////////////
@@ -451,7 +692,80 @@ public class Database {
      * @param grade          points awarded
      */
     public void assignGrade(int activeClassId, String assignmentName, String username, double grade) {
-        // TODO
+
+        String assignmentLookupSql = """
+            SELECT ID, point_value
+            FROM Assignment
+            WHERE name = ? AND Class_ID = ?
+            """;
+
+        String studentLookupSql = """
+            SELECT s.ID
+            FROM Student s
+            JOIN Enrolled e ON s.ID = e.Student_ID
+            WHERE s.username = ? AND e.Class_ID = ?
+            """;
+
+        // INSERT ... ON DUPLICATE KEY UPDATE handles both insert and replace
+        String upsertSql = """
+            INSERT INTO Assigned (Student_ID, Assignment_ID, grade)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE grade = VALUES(grade)
+            """;
+
+        try {
+            // Step 1: look up assignment, make sure it belongs to this class
+            int assignmentId;
+            double maxPoints;
+            try (PreparedStatement ps = connection.prepareStatement(assignmentLookupSql)) {
+                ps.setString(1, assignmentName);
+                ps.setInt(2, activeClassId);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        System.out.println("Assignment '" + assignmentName + "' not found in this class. "
+                                + "Use 'show-assignments' to see available assignments.");
+                        return;
+                    }
+                    assignmentId = rs.getInt("ID");
+                    maxPoints    = rs.getDouble("point_value");
+                }
+            }
+
+            // Step 2: warn if grade exceeds max points
+            if (grade > maxPoints) {
+                System.out.printf("Warning: grade %.0f exceeds max points %.0f for '%s'.%n",
+                        grade, maxPoints, assignmentName);
+            }
+
+            // Step 3: look up student, make sure they're enrolled in this class
+            int studentId;
+            try (PreparedStatement ps = connection.prepareStatement(studentLookupSql)) {
+                ps.setString(1, username);
+                ps.setInt(2, activeClassId);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        System.out.println("Student '" + username + "' not found or not enrolled in this class.");
+                        return;
+                    }
+                    studentId = rs.getInt("ID");
+                }
+            }
+
+            // Step 4: insert or replace the grade
+            try (PreparedStatement ps = connection.prepareStatement(upsertSql)) {
+                ps.setInt(1, studentId);
+                ps.setInt(2, assignmentId);
+                ps.setDouble(3, grade);
+                ps.executeUpdate();
+                System.out.printf("Grade %.0f assigned to '%s' for '%s'.%n",
+                        grade, username, assignmentName);
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to assign grade: " + e.getMessage());
+        }
     }
 
     ///////////////////////////////
@@ -459,7 +773,7 @@ public class Database {
     ///////////////////////////////
 
     /**
-     * Shows all grades for a student, grouped by category, with subtotals and overall grade.
+     * Shows all grades for a student grouped by category, with subtotals and overall grade.
      * Reports both total grade (ungraded = 0) and attempted grade (graded only).
      * Called by: handleStudentGrades()
      *
@@ -467,7 +781,194 @@ public class Database {
      * @param username      student username
      */
     public void getGradesForStudent(int activeClassId, String username) {
-        // TODO
+
+        // First verify the student exists and is enrolled
+        String studentLookupSql = """
+            SELECT s.ID, s.name
+            FROM Student s
+            JOIN Enrolled e ON s.ID = e.Student_ID
+            WHERE s.username = ? AND e.Class_ID = ?
+            """;
+
+        // Pull all assignments for the class with the student's grade (null if ungraded)
+        // Also pull category weight so we can compute weighted grade
+        String gradesSql = """
+            SELECT
+                cat.name        AS category_name,
+                chc.weight      AS category_weight,
+                a.name          AS assignment_name,
+                a.point_value   AS max_points,
+                asn.grade       AS earned
+            FROM Assignment a
+            JOIN Category cat ON a.Category_ID = cat.ID
+            JOIN ClassHasCategory chc ON cat.ID = chc.Category_ID
+                AND chc.Class_ID = a.Class_ID
+            LEFT JOIN Assigned asn ON a.ID = asn.Assignment_ID
+                AND asn.Student_ID = ?
+            WHERE a.Class_ID = ?
+            ORDER BY cat.name, a.name
+            """;
+
+        // Get total weight so we can rescale to 100
+        String totalWeightSql = """
+            SELECT SUM(weight) AS total_weight
+            FROM ClassHasCategory
+            WHERE Class_ID = ?
+            """;
+
+        try {
+            // Step 1: verify student is enrolled
+            int studentId;
+            String studentName;
+            try (PreparedStatement ps = connection.prepareStatement(studentLookupSql)) {
+                ps.setString(1, username);
+                ps.setInt(2, activeClassId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        System.out.println("Student '" + username + "' not found or not enrolled in this class.");
+                        return;
+                    }
+                    studentId   = rs.getInt("ID");
+                    studentName = rs.getString("name");
+                }
+            }
+
+            // Step 2: get total weight for rescaling
+            double totalWeight;
+            try (PreparedStatement ps = connection.prepareStatement(totalWeightSql)) {
+                ps.setInt(1, activeClassId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    totalWeight = rs.getDouble("total_weight");
+                }
+            }
+
+            // Step 3: fetch all assignments + grades and display grouped by category
+            try (PreparedStatement ps = connection.prepareStatement(gradesSql)) {
+                ps.setInt(1, studentId);
+                ps.setInt(2, activeClassId);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.isBeforeFirst()) {
+                        System.out.println("No assignments found for this class.");
+                        return;
+                    }
+
+                    System.out.println("\nGrades for " + studentName + " (" + username + ")");
+                    System.out.println("=".repeat(60));
+
+                    // Accumulators for overall grade
+                    double totalEarned   = 0; // sum of weighted category scores (all assignments)
+                    double attemptEarned = 0; // sum of weighted category scores (attempted only)
+
+                    // Per-category accumulators (reset each category)
+                    String currentCategory  = null;
+                    double catWeight        = 0;
+                    double catMaxTotal      = 0; // total possible points in category
+                    double catEarnedTotal   = 0; // points earned (ungraded = 0)
+                    double catAttemptMax    = 0; // possible points for attempted assignments only
+                    double catAttemptEarned = 0; // points earned on attempted assignments
+
+                    // We'll collect rows so we can flush each category when it changes
+                    // Store current row data to process after detecting category change
+                    boolean firstRow = true;
+
+                    // Buffer: re-read into local vars each iteration
+                    String  rowCategory, rowAssignment;
+                    double  rowWeight, rowMax;
+                    Double  rowEarned; // null if ungraded
+
+                    // Use a do-while pattern by peeking ahead isn't easy with ResultSet,
+                    // so we flush category totals when category changes or at end
+                    while (rs.next()) {
+                        rowCategory   = rs.getString("category_name");
+                        rowWeight     = rs.getDouble("category_weight");
+                        rowAssignment = rs.getString("assignment_name");
+                        rowMax        = rs.getDouble("max_points");
+                        rowEarned     = rs.wasNull() ? null : rs.getDouble("earned");
+
+                        // Flush previous category when we enter a new one
+                        if (!rowCategory.equals(currentCategory)) {
+                            if (currentCategory != null) {
+                                // Print subtotal for finished category and accumulate overall
+                                double[] subtotals = flushCategory(currentCategory, catWeight,
+                                        totalWeight, catMaxTotal, catEarnedTotal,
+                                        catAttemptMax, catAttemptEarned);
+                                totalEarned   += subtotals[0];
+                                attemptEarned += subtotals[1];
+                            }
+
+                            // Start new category
+                            currentCategory  = rowCategory;
+                            catWeight        = rowWeight;
+                            catMaxTotal      = 0;
+                            catEarnedTotal   = 0;
+                            catAttemptMax    = 0;
+                            catAttemptEarned = 0;
+
+                            System.out.println("\n[ " + currentCategory
+                                    + " | weight: " + String.format("%.1f", rowWeight) + "% ]");
+                            System.out.printf("  %-25s %-10s %s%n", "Assignment", "Earned", "Max");
+                            System.out.println("  " + "-".repeat(45));
+                        }
+
+                        // Print this assignment row
+                        String earnedStr = rowEarned != null
+                                ? String.format("%.0f", rowEarned)
+                                : "--";
+                        System.out.printf("  %-25s %-10s %.0f%n",
+                                rowAssignment, earnedStr, rowMax);
+
+                        // Accumulate category totals
+                        catMaxTotal    += rowMax;
+                        catEarnedTotal += rowEarned != null ? rowEarned : 0;
+                        if (rowEarned != null) {
+                            catAttemptMax    += rowMax;
+                            catAttemptEarned += rowEarned;
+                        }
+                    }
+
+                    // Flush the last category
+                    if (currentCategory != null) {
+                        double[] subtotals = flushCategory(currentCategory, catWeight,
+                                totalWeight, catMaxTotal, catEarnedTotal,
+                                catAttemptMax, catAttemptEarned);
+                        totalEarned   += subtotals[0];
+                        attemptEarned += subtotals[1];
+                    }
+
+                    // Print overall grades
+                    System.out.println("\n" + "=".repeat(60));
+                    System.out.printf("  Total grade:     %.2f%%%n", totalEarned);
+                    System.out.printf("  Attempted grade: %.2f%%%n", attemptEarned);
+                    System.out.println("=".repeat(60));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to get student grades: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Prints the subtotal line for a completed category and returns the
+     * weighted contribution to the overall total and attempted grades.
+     *
+     * @return double[2] where [0] = weighted total contribution,
+     *                         [1] = weighted attempted contribution
+     */
+    private double[] flushCategory(String name, double weight, double totalWeight,
+                                   double maxTotal, double earnedTotal,
+                                   double attemptMax, double attemptEarned) {
+        double rescaledWeight   = (totalWeight > 0) ? (weight / totalWeight) * 100.0 : 0;
+        double catTotalScore    = (maxTotal > 0)    ? (earnedTotal / maxTotal) * rescaledWeight : 0;
+        double catAttemptScore  = (attemptMax > 0)  ? (attemptEarned / attemptMax) * rescaledWeight : 0;
+
+        System.out.println("  " + "-".repeat(45));
+        System.out.printf("  Subtotal: %.0f / %.0f pts  →  %.2f%% (of %.1f%% weight)%n",
+                earnedTotal, maxTotal, catTotalScore, rescaledWeight);
+
+        return new double[]{ catTotalScore, catAttemptScore };
     }
 
     /**
@@ -478,7 +979,132 @@ public class Database {
      * @param activeClassId the currently active class ID
      */
     public void getCurrentClassGrades(int activeClassId) {
-        // TODO
+
+        // Get total weight for rescaling
+        String totalWeightSql = """
+            SELECT SUM(weight) AS total_weight
+            FROM ClassHasCategory
+            WHERE Class_ID = ?
+            """;
+
+        // For each student, compute their weighted total and attempted scores in SQL.
+        // - total:    ungraded assignments count as 0
+        // - attempted: only assignments they have a grade for
+        // Rescaling happens in Java once we have total_weight.
+        String gradebookSql = """
+            SELECT
+                s.username,
+                s.name,
+                cat.name                        AS category_name,
+                chc.weight                      AS category_weight,
+                SUM(a.point_value)              AS cat_max,
+                SUM(COALESCE(asn.grade, 0))     AS cat_earned,
+                SUM(CASE WHEN asn.grade IS NOT NULL THEN a.point_value ELSE 0 END)
+                                                AS cat_attempt_max,
+                SUM(CASE WHEN asn.grade IS NOT NULL THEN asn.grade ELSE 0 END)
+                                                AS cat_attempt_earned
+            FROM Student s
+            JOIN Enrolled e     ON s.ID = e.Student_ID AND e.Class_ID = ?
+            JOIN Assignment a   ON a.Class_ID = ?
+            JOIN Category cat   ON a.Category_ID = cat.ID
+            JOIN ClassHasCategory chc ON cat.ID = chc.Category_ID AND chc.Class_ID = ?
+            LEFT JOIN Assigned asn ON asn.Assignment_ID = a.ID AND asn.Student_ID = s.ID
+            GROUP BY s.ID, s.username, s.name, cat.ID, cat.name, chc.weight
+            ORDER BY s.name, cat.name
+            """;
+
+        try {
+            // Step 1: get total weight for rescaling
+            double totalWeight;
+            try (PreparedStatement ps = connection.prepareStatement(totalWeightSql)) {
+                ps.setInt(1, activeClassId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    rs.next();
+                    totalWeight = rs.getDouble("total_weight");
+                }
+            }
+
+            if (totalWeight == 0) {
+                System.out.println("No categories with weights found for this class.");
+                return;
+            }
+
+            // Step 2: fetch per-student per-category rows and accumulate
+            try (PreparedStatement ps = connection.prepareStatement(gradebookSql)) {
+                ps.setInt(1, activeClassId);
+                ps.setInt(2, activeClassId);
+                ps.setInt(3, activeClassId);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.isBeforeFirst()) {
+                        System.out.println("No students enrolled in this class.");
+                        return;
+                    }
+
+                    // Print header
+                    System.out.println("\nGradebook");
+                    System.out.println("=".repeat(65));
+                    System.out.printf("%-20s %-12s %-15s %s%n",
+                            "Username", "Student ID", "Total Grade", "Attempted Grade");
+                    System.out.println("-".repeat(65));
+
+                    // Accumulators per student (reset when username changes)
+                    String currentUsername = null;
+                    String currentName     = null;
+                    double totalScore      = 0;
+                    double attemptScore    = 0;
+
+                    while (rs.next()) {
+                        String username     = rs.getString("username");
+                        String name         = rs.getString("name");
+                        double catWeight    = rs.getDouble("category_weight");
+                        double catMax       = rs.getDouble("cat_max");
+                        double catEarned    = rs.getDouble("cat_earned");
+                        double catAttemptMax    = rs.getDouble("cat_attempt_max");
+                        double catAttemptEarned = rs.getDouble("cat_attempt_earned");
+
+                        // Flush previous student when username changes
+                        if (!username.equals(currentUsername)) {
+                            if (currentUsername != null) {
+                                printGradebookRow(currentUsername, currentName, totalScore, attemptScore);
+                            }
+                            currentUsername = username;
+                            currentName     = name;
+                            totalScore      = 0;
+                            attemptScore    = 0;
+                        }
+
+                        // Rescale this category's weight and accumulate
+                        double rescaled = (catWeight / totalWeight) * 100.0;
+                        totalScore   += catMax > 0 ? (catEarned / catMax) * rescaled : 0;
+                        attemptScore += catAttemptMax > 0 ? (catAttemptEarned / catAttemptMax) * rescaled : 0;
+                    }
+
+                    // Flush last student
+                    if (currentUsername != null) {
+                        printGradebookRow(currentUsername, currentName, totalScore, attemptScore);
+                    }
+
+                    System.out.println("=".repeat(65));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Failed to get gradebook: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Prints a single student row in the gradebook.
+     *
+     * @param username     student username
+     * @param name         student full name
+     * @param totalScore   weighted total grade (ungraded = 0)
+     * @param attemptScore weighted attempted grade (graded only)
+     */
+    private void printGradebookRow(String username, String name, double totalScore, double attemptScore) {
+        System.out.printf("%-20s %-30s %6.2f%%  %10.2f%%%n",
+                username, name, totalScore, attemptScore);
     }
 
     //////////////////////////////
